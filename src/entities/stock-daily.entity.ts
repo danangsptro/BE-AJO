@@ -27,9 +27,9 @@ export class StockDaily {
 
   @ManyToOne(() => Product)
   @JoinColumn({ name: 'product_id' })
-  product: Product;
+  product!: Product;
 
   @ManyToOne(() => Outlet)
   @JoinColumn({ name: 'outlet_id' })
-  outlet: Outlet;
+  outlet!: Outlet;
 }

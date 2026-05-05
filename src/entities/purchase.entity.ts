@@ -1,44 +1,53 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Product } from './product.entity';
 import { Outlet } from './outlet.entity';
 
 @Entity()
 export class Purchase {
   @PrimaryGeneratedColumn()
-  id?: number;
+  id!: number;
 
   @Column({ type: 'date' })
-  date?: string;
+  date!: string;
 
   @Column()
-  product_id?: number;
+  product_id!: number;
 
   @Column()
-  outlet_id?: number;
+  outlet_id!: number;
 
   @Column('int')
-  qty?: number;
+  qty!: number;
 
   @Column('decimal', { precision: 15, scale: 2 })
-  price?: number;
+  price!: number;
 
-  @Column('decimal', { precision: 15, scale: 2, nullable: true })
-  discount?: number;
+  @Column('decimal', { precision: 15, scale: 2, default: 0 })
+  discount!: number;
 
   @Column('decimal', { precision: 15, scale: 2 })
-  total_price?: number;
+  total_price!: number;
 
   @Column({ nullable: true })
   note?: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at?: Date;
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  created_at!: Date;
 
   @ManyToOne(() => Product)
   @JoinColumn({ name: 'product_id' })
-  product: Product;
+  product!: Product;
 
   @ManyToOne(() => Outlet)
   @JoinColumn({ name: 'outlet_id' })
-  outlet: Outlet;
+  outlet!: Outlet;
 }

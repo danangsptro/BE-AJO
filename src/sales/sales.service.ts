@@ -11,10 +11,13 @@ export class SalesService {
   constructor(
     @InjectRepository(Sales)
     private salesRepository: Repository<Sales>,
+
     @InjectRepository(SalesItem)
     private salesItemRepository: Repository<SalesItem>,
+
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+
     private dataSource: DataSource,
   ) {}
 
@@ -24,16 +27,31 @@ export class SalesService {
     await queryRunner.startTransaction();
 
     try {
-      const sales = this.salesRepository.create({ date: createSalesDto.date, outlet_id: createSalesDto.outlet_id, channel_id: createSalesDto.channel_id });
+      const sales = this.salesRepository.create({
+        date: createSalesDto.date,
+        outlet_id: createSalesDto.outlet_id,
+        channel_id: createSalesDto.channel_id,
+      });
+
       const savedSales = await queryRunner.manager.save(Sales, sales);
 
       for (const item of createSalesDto.items) {
-        const product = await this.productRepository.findOne({ where: { id: item.product_id } });
+        const product = await this.productRepository.findOne({
+          where: { id: item.product_id },
+        });
+
         if (!product) {
-          throw new NotFoundException(`Product with id ${item.product_id} not found`);
+          throw new NotFoundException(
+            `Product with id ${item.product_id} not found`,
+          );
         }
-        const total_price = (item.price * item.qty) - (item.discount || 0);
-        const profit = total_price - (product.hpp * item.qty);
+
+        const hpp = product.hpp ?? 0;
+
+        const total_price = item.price * item.qty - (item.discount || 0);
+
+        const profit = total_price - hpp * item.qty;
+
         const salesItem = this.salesItemRepository.create({
           sales_id: savedSales.id,
           product_id: item.product_id,
@@ -41,13 +59,15 @@ export class SalesService {
           price: item.price,
           discount: item.discount || 0,
           total_price,
-          hpp: product.hpp,
+          hpp,
           profit,
         });
+
         await queryRunner.manager.save(SalesItem, salesItem);
       }
 
       await queryRunner.commitTransaction();
+
       return this.findOne(savedSales.id!);
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -57,15 +77,22 @@ export class SalesService {
     }
   }
 
-  findAll(): Promise<Sales[]> {
-    return this.salesRepository.find({ relations: ['salesItems', 'salesItems.product'] });
+  async findAll(): Promise<Sales[]> {
+    return this.salesRepository.find({
+      relations: ['salesItems', 'salesItems.product'],
+    });
   }
 
   async findOne(id: number): Promise<Sales> {
-    const sales = await this.salesRepository.findOne({ where: { id }, relations: ['salesItems', 'salesItems.product'] });
+    const sales = await this.salesRepository.findOne({
+      where: { id },
+      relations: ['salesItems', 'salesItems.product'],
+    });
+
     if (!sales) {
       throw new NotFoundException('Sales not found');
     }
+
     return sales;
   }
 
@@ -76,20 +103,27 @@ export class SalesService {
     const sales = await this.salesRepository
       .createQueryBuilder('sales')
       .leftJoinAndSelect('sales.salesItems', 'salesItems')
-      .where('sales.date >= :startDate', { startDate: startDate.toISOString().split('T')[0] })
-      .andWhere('sales.date < :endDate', { endDate: endDate.toISOString().split('T')[0] })
+      .where('sales.date >= :startDate', {
+        startDate: startDate.toISOString().split('T')[0],
+      })
+      .andWhere('sales.date < :endDate', {
+        endDate: endDate.toISOString().split('T')[0],
+      })
       .getMany();
 
     let totalRevenue = 0;
     let totalProfit = 0;
 
     for (const sale of sales) {
-      for (const item of sale.salesItems!) {
-        totalRevenue += parseFloat(item.total_price!.toString());
-        totalProfit += parseFloat(item.profit!.toString());
+      for (const item of sale.salesItems ?? []) {
+        totalRevenue += Number(item.total_price || 0);
+        totalProfit += Number(item.profit || 0);
       }
     }
 
-    return { totalRevenue, totalProfit };
+    return {
+      totalRevenue,
+      totalProfit,
+    };
   }
 }
